@@ -73,7 +73,6 @@ feed:	#之后配置rss会用，使用如下配置即可
 ## Docs: http://hexo.io/docs/deployment.html
 
 deploy: 
-  type: git
-  repository: https://github.com/raphael-liu/raphael-liu.github.io
-  branch: master
-  message: first version
+  type:git
+  repo:https://github.com/raphael-liu/raphael-liu.github.io.git
+  branch:master

@@ -172,4 +172,4 @@ handleOnPress() {
 
 你可以利用内置的分析器来同时获取JavaScript线程和主线程中代码执行情况的详细信息。
 
-对于iOS来说，Instruments是一个宝贵的工具库，Android的话，你可以使用systrace，参见[调试Android UI性能](/docs/android-ui-performance.html#content)。
+对于iOS来说，Instruments是一个宝贵的工具库，Android的话，你可以使用systrace，参见[调试Android UI性能](http://bdapp.org/2016/10/26/react-native-android-ui-performance/)。

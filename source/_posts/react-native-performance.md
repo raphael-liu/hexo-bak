@@ -1,73 +1,175 @@
 ---
-title: react-native-performance
-date: 2016-10-25 17:47:14
-tags:
+title: react-native性能
+date: 2016-10-26 11:02:17
+tags: react-native
 ---
-#[Dive into React Native performance](https://code.facebook.com/posts/895897210527114/)
-[React Native](https://facebook.github.io/react-native/) allows you to build iOS and Android apps in JavaScript using [React](https://facebook.github.io/react/) and [Relay](https://facebook.github.io/relay/)'s declarative programming model. This leads to more concise, easier-to-understand code; fast iteration without a compile cycle; and easy sharing of code across multiple platforms. You can ship faster and focus on details that really matter, making your app look and feel fantastic. Optimizing performance is a big part of this. Here is the story of how we made React Native app startup twice as fast.
+使用React Native替代基于WebView的框架来开发App的一个强有力的理由，就是为了使App可以达到每秒60帧（足够流畅），并且能有类似原生App的外观和手感。因此我们也尽可能地优化React Native去实现这一目标，使开发者能集中精力处理App的业务逻辑，而不用费心考虑性能。但是，总还是有一些地方有所欠缺，以及在某些场合React Native还不能够替你决定如何进行优化（用原生代码写也无法避免），因此人工的干预依然是必要的。
+本文的目的是教给你一些基本的知识，来帮你排查性能方面的问题，以及探讨这些问题产生的原因和推荐的解决方法。
 
-##Why the hurry?
-With an app that runs faster, content loads quickly, which means people get more time to interact with it, and smooth animations make the app enjoyable to use. In emerging markets, where 2011 class phones on 2G networks are the majority, a focus on performance can make the difference between an app that is usable and one that isn't.
+## 关于“帧”你所需要知道的
 
-Since releasing React Native on iOS and on Android, we have been improving list view scrolling performance, memory efficiency, UI responsiveness, and app startup time. Startup sets the first impression of an app and stresses all parts of the framework, so it is the most rewarding and challenging problem to tackle.
+老一辈人常常把电影称为“移动的画”，是因为视频中逼真的动态效果其实是一种幻觉，这种幻觉是由一组静态的图片以一个稳定的速度快速变化所产生的。我们把这组图片中的每一张图片叫做一帧，而每秒钟显示的帧数直接的影响了视频（或者说用户界面）的流畅度和真实感。iOS设备提供了每秒60的帧率，这就留给了开发者和UI系统大约16.67ms来完成生成一张静态图片（帧）所需要的所有工作。如果在这分派的16.67ms之内没有能够完成这些工作，就会引发‘丢帧’的后果，使界面表现的不够流畅。
 
-##Always be measuring
-We converted the Events Dashboard feature in the Facebook for iOS app to React Native (navigate to the More tab in the app and tap Events to see it). This was the perfect candidate for testing performance because the native product was already highly optimized and provided a typical “interactive list of items” experience.
-![](https://scontent.xx.fbcdn.net/l/t39.2365-6/12679446_1168726623161282_931282499_n.jpg)
-Fig. 1: The Events Dashboard screen
+下面要讲的事情可能更为复杂：请先调出你应用的开发菜单，打开`Show FPS Monitor`. 你会注意到有两个不同的帧率.
 
-Next, we set up an automated CT-Scan performance test that helped us navigate to the rightmost tab, which then opens and closes the Events Dashboard 50 times. During each of these iterations, we are able to measure the time it takes from tapping the Events button to events being visible on the screen. We also added more detailed performance markers to give us a good idea of which steps in the startup process were slow and taking up CPU time.
+### JavaScript 帧率
 
-Here is an overview of some of the steps we are measuring:
+对大多数React Native应用来说，业务逻辑是运行在JavaScript线程上的。这是React应用所在的线程，也是发生API调用，以及处理触摸事件等操作的线程。更新数据到原生支持的视图是批量进行的，并且在事件循环每进行一次的时候被发送到原生端，这一步通常会在一帧时间结束之前处理完（如果一切顺利的话）。如果JavaScript线程有一帧没有及时响应，就被认为发生了一次丢帧。 例如，你在一个复杂应用的根组件上调用了`this.setState`，从而导致一次开销很大的子组件树的重绘，可想而知，这可能会花费200ms也就是整整12帧的丢失。此时，任何由JavaScript控制的动画都会卡住。只要卡顿超过100ms，用户就会明显的感觉到。
 
-* Native Initialization: Initialize the JavaScript virtual machine and all the native modules (disk cache, network, UI manager, etc.).
-* JS Init + Require: Read the minified JavaScript bundle file from disk and load it into the JavaScript virtual machine, which will parse it and generate bytecode as it requires the initial modules (mostly React, Relay, and their dependencies).
-* Before Fetch: Load and execute the Events Dashboard application code, build the Relay query, and kick off reading from the on-disk cache.
-* Fetch: Fetch data from the on-disk cache.
-* JS Render: Instantiate all the React components and send them to the native UI manager module for display.
-* Native Render: Calculate view sizes by computing the FlexBox layout on the shadow thread; create and position the views on the main thread.
-![](https://fbcdn-dragon-a.akamaihd.net/hphotos-ak-xfp1/t39.2365-6/12679489_247741662231959_787037748_n.jpg)
-Fig. 2: Events Dashboard startup performance
+这种情况经常发生在Navigator的切换过程中：当你push一个新的路由时，JavaScript需要绘制新场景所需的所有组件，以发送正确的命令给原生端去创建视图。由于切换是由JavaScript线程所控制，因此经常会占用若干帧的时间，引起一些卡顿。有的时候，组件会在`componentDidMount`函数中做一些额外的事情，这甚至可能会导致页面切换过程中多达一秒的卡顿。
 
-Our golden rule from then on: Never regress the test. We run it continuously to track performance improvements and regressions, and developers can run it on a specific commit to get a detailed performance analysis before pushing the change. Other tests have been set up to measure scroll performance and memory usage in the same way.
+另一个例子是触摸事件的响应：如果你正在JavaScript线程处理一个跨越多个帧的工作，你可能会注意到TouchableOpacity的响应被延迟了。这是因为JavaScript线程太忙了，不能够处理主线程发送过来的原始触摸事件。结果TouchableOpacity就不能及时响应这些事件并命令主线程的页面去调整透明度了。
 
-##What happens on startup
-With automated performance tracking in place, we needed a tool that could give us more details on what exactly needed improvement during startup. We added detailed start/stop performance markers throughout our frameworks, collected the data, and used the catapult viewer to identify hot spots and blocking interactions across threads. You can trigger profiling on your app from the developer menu.
+### 主线程 (也即UI线程) 帧率
 
-With React Native, your code is executed on the JavaScript thread. Whenever you want to write data to the disk, make a network request, or access any other native resource (like the camera), your code needs to call a native module. When you render your components with React, they will be forwarded to the UI manager native module, which will then perform layout and create the resulting views on the main thread. The bridge will forward your call to the module and call back to your code, if needed. In React Native, all native calls have to be asynchronous to avoid blocking the main thread or the JS thread.
+很多人会注意到，`NavigatorIOS`的性能要比Navigator好的多。原因就是它的切换动画是完全在主线程上执行的，因此不会被JavaScript线程上的掉帧所影响。（[阅读关于为何你仍然需要使用Navigator](using-navigators.html)）
 
-In the below Events Dashboard startup visualization, we can see that the app, which is running on the JS queue, triggers a cache read for the events to be displayed, which is triggered on the async local storage queue. Once it gets the cached data back, the app renders the events cells on the JS queue with React, which then passes it on to the shadow queue for layout and finally to the main queue for view creation. This example shows multiple cache reads (using one common read operation may be faster) and a few React render operations on the JS thread that might be consolidated.
-![](https://fbcdn-dragon-a.akamaihd.net/hphotos-ak-xpf1/t39.2365-6/12427047_188833171499254_295261012_n.jpg)
-Fig. 3: Events Dashboard startup visualization
+同样，当JavaScript线程卡住的时候，你仍然可以欢快的上下滚动ScrollView，因为ScrollView运行在主线程之上（尽管滚动事件会被分发到JS线程，但是接收这些事件对于滚动这个动作来说并不必要）。
 
-##Performance improvements
-Here are a few of the most significant efficiency and scheduling improvements we have made to reach our results, with links to the relevant commits.
+## 性能问题的常见原因
 
-##Doing less
-* Cleanup Require/Babel helpers (high impact): Removes helper code executed during require() that was specific to our website and not needed for React Native.
+### console.log语句
 
-* Avoid copying and decoding strings when loading the bundle (medium impact): Passing a UTF-8 string to the JavaScriptCore virtual machine will cause it to trigger a slower conversion to UCS-2 format. Encoding it in ASCII format instead will avoid the conversion. Getting rid of the intermediate NSString representation also improves performance by avoiding one more conversion. We discovered these improvements through extensive benchmarking of the bundle loading step.
+在运行打好了离线包的应用时，控制台打印语句可能会极大地拖累JavaScript线程。注意有些第三方调试库也可能包含控制台打印语句，比如[redux-logger](https://github.com/evgenyrodionov/redux-logger)，所以在发布应用前请务必仔细检查，确保全部移除。
 
-* Stripping DEV-only modules (low impact): Unlike compiled code, JavaScript doesn't have a preprocessor that can strip debugging features in release mode. Using a Babel transform, we were able to remove code living behind __DEV__ statements, effectively reducing bundle size, which improves JavaScript parse time.
 
-* Generate event descriptions on the server (low impact): Instead of fetching data to generate a sentence describing which friends are coming to an event, generate it on the server, which reduces the data we have to receive and parse, and avoid all the client-side processing to generate the sentence.
+> 有个[babel插件](https://babeljs.io/docs/plugins/transform-remove-console/)可以帮你移除所有的`console.*`调用。首先需要使用`npm install babel-plugin-transform-remove-console --save`来安装，然后在项目根目录下编辑（或者是新建）一个名为·.babelrc`的文件，在其中加入：
+```json
+{
+  "env": {
+    "production": {
+      "plugins": ["transform-remove-console"]
+    }
+  }
+}
+```
+这样在打包发布时，所有的控制台语句就会被自动移除，而在调试时它们仍然会被正常调用。
 
-##Scheduling
-* Lazy requires (low impact): Instead of executing all JavaScript module require calls up front, trigger a require call only the first time we need it. This optimization effectively avoids requiring modules that are never used, and it has also proved to be successful on the web.
+### 开发模式 (dev=true) 
 
-* Relay incremental cache read (high impact): Relay was initially written for the web and had only an in-memory response cache. The first on-disk response cache was reading the entire cache from the disk. By reading only the content required to fulfill a particular query, we significantly reduced the I/O overhead and native-to-JS bridge traffic.
+JavaScript线程的性能在开发模式下是很糟糕的。这是不可避免的，因为有许多工作需要在运行的时候去做，譬如使你获得良好的警告和错误信息，又比如验证属性类型（propTypes）以及产生各种其他的警告。
 
-* De-batching bridge calls, batch Relay calls (high impact): We initially thought that sending JS calls to native in batches would reduce the overhead of calling over the native-to-JS bridge, but performance analysis showed the overhead of JS calls to native was not a bottleneck: In fact, delaying UI or cache read calls to batch them with later calls also delayed work on the native thread, which harmed performance. In other cases, like the Relay cache read fetching data for multiple keys, batching proved to be a significant improvement.
+### 缓慢的导航器(Navigator)切换
 
-* Early UI flushing (low impact): We also batched UI updates to enforce consistency, but sending layout commands as soon as they are ready proved to be more efficient because the native UI manager can work in parallel with the JavaScript thread.
+如之前说，`Navigator`的动画是由JavaScript线程所控制的。想象一下“从右边推入”这个场景的切换：每一帧中，新的场景从右向左移动，从屏幕右边缘开始（不妨认为是320单位宽的的x轴偏移），最终移动到x轴偏移为0的屏幕位置。切换过程中的每一帧，JavaScript线程都需要发送一个新的x轴偏移量给主线程。如果JavaScript线程卡住了，它就无法处理这项事情，因而这一帧就无法更新，动画就被卡住了。
 
-* Lazy native modules loading (low impact): Initialize a native module only the first time we use it, which avoids initializing the modules we do not need.
+长远的解决方法，其中一部分是要允许基于JavaScript的动画从主线程分离。同样是上面的例子，我们可以在切换动画开始的时候计算出一个列表，其中包含所有的新的场景需要的x轴偏移量，然后一次发送到主线程以某种优化的方式执行。由于JavaScript线程已经从更新x轴偏移量给主线程这个职责中解脱了出来，因此JavaScript线程中的掉帧就不是什么大问题了 —— 用户将基本上不会意识到这个问题，因为用户的注意力会被流畅的切换动作所吸引。
 
-* Lazy touch bindings on text components (low impact): Binding touch event callbacks takes a significant amount of time. Instead of doing all that work up front, we are now only binding the touch down event (when you first touch a target) and bind all the other callbacks only when you start touching the element.
+不幸的是，这个方案还没有被实现。所以当前的解决方案是，在动画的进行过程中，利用InteractionManager来选择性的渲染新场景所需的最小限度的内容。
 
-* Defer popular events query (medium impact): The first screen of information is populated by the events query, and we will then show popular events after these. Deferring that query reduces contention when populating the screen with events.
+`InteractionManager.runAfterInteractions`的参数中包含一个回调，这个回调会在navigator切换动画结束的时候被触发（每个来自于`Animated`接口的动画都会通知InteractionManager，不过这个就超出了本文的讨论）。
 
-##Prepare for light-speed
-A few months ago, Events Dashboard startup took two seconds on the iPhone 5. After a lot of work from the React Native Performance, React Native, React, and Relay teams in London, Menlo Park, and New York, Events Dashboard startup is now twice as fast. Most of the improvements we made were done at the framework level, which means your React Native app will automatically benefit when migrating to the latest version of React Native.
+你的场景组件看上去应该是这样的：
 
-These improvements are just the beginning: We continue to work on making every part of the stack faster, from JavaScript parse time to data-fetching performance. And you can contribute, learn how to make your apps faster, and ask any questions you may have in our community!
+```javascript
+class ExpensiveScene extends React.Component {
+  constructor(props, context) {
+    super(props, context);
+    this.state = {renderPlaceholderOnly: true};
+  }
+
+  componentDidMount() {
+    InteractionManager.runAfterInteractions(() => {
+      this.setState({renderPlaceholderOnly: false});
+    });
+  }
+
+  render() {
+    if (this.state.renderPlaceholderOnly) {
+      return this._renderPlaceholderView();
+    }
+
+    return (
+      <View>
+        <Text>Your full view goes here</Text>
+      </View>
+    );
+  }
+
+
+  _renderPlaceholderView() {
+    return (
+      <View>
+        <Text>Loading...</Text>
+      </View>
+    );
+  }
+};
+```
+
+你不必被限制在仅仅是做一些loading指示的渲染，你也可以绘制部分的页面内容 —— 例如，当你加载Facebook应用的时候，你会看见一个灰色方形的消息流的占位符，是将来用来显示文字的地方。如果你正在场景中绘制地图，那么最好在场景切换完成之前，显示一个灰色的占位页面或者是一个转动的动画，因为切换过程的确会导致主线程的掉帧。
+
+### ListView初始化渲染太慢以及列表过长时滚动性能太差
+这是一个频繁出现的问题。因为iOS配备了UITableView，通过重用底层的UIViews实现了非常高性能的体验（相比之下ListView的性能没有那么好）。用React Native实现相同效果的工作仍正在进行中，但是在此之前，我们有一些可用的方法来稍加改进性能以满足我们的需求。
+
+#### initialListSize 
+
+这个属性定义了在首次渲染中绘制的行数。如果我们关注于快速的显示出页面，可以设置`initialListSize`为1，然后我们会发现其他行在接下来的帧中被快速绘制到屏幕上。而每帧所显示的行数由`pageSize`所决定。
+
+#### pageSize 
+
+在初始渲染也就是`initialListSize`被使用之后，ListView将利用`pageSize`来决定每一帧所渲染的行数。默认值为1 —— 但是如果你的页面很小，而且渲染的开销不大的话，你会希望这个值更大一些。稍加调整，你会发现它所起到的作用。
+
+#### scrollRenderAheadDistance 
+
+“在将要进入屏幕区域之前的某个位置，开始绘制一行，距离按像素计算。”
+
+如果我们有一个2000个元素的列表，并且立刻全部渲染出来的话，无论是内存还是计算资源都会显得很匮乏。还很可能导致非常可怕的阻塞。因此`scrollRenderAheadDistance`允许我们来指定一个超过视野范围之外所需要渲染的行数。
+
+#### removeClippedSubviews 
+
+“当这一选项设置为true的时候，超出屏幕的子视图（同时`overflow`值为`hidden`）会从它们原生的父视图中移除。这个属性可以在列表很长的时候提高滚动的性能。默认为false。（0.14版本后默认为true）”
+
+这是一个应用在长列表上极其重要的优化。Android上，`overflow`值总是`hidden`的，所以你不必担心没有设置它。而在iOS上，你需要确保在行容器上设置了`overflow: hidden`。
+
+### 我的组件渲染太慢，我不需要立即显示全部
+
+这在初次浏览ListView时很常见，适当的使用它是获得稳定性能的关键。就像之前所提到的，它可以提供一些手段在不同帧中来分开渲染页面，稍加改进就可以满足你的需求。此外要记住的是，ListView也可以横向滚动。
+
+### 在重绘一个几乎没有什么变化的页面时，JS帧率严重降低
+
+如果你正在使用一个ListView，你必须提供一个`rowHasChanged`函数，它通过快速的算出某一行是否需要重绘，来减少很多不必要的工作。如果你使用了不可变的数据结构，这项工作就只需检查其引用是否相等。
+
+同样的，你可以实现`shouldComponentUpdate`函数来指明在什么样的确切条件下，你希望这个组件得到重绘。如果你编写的是纯粹的组件（返回值完全由props和state所决定），你可以利用`PureRenderMixin`来为你做这个工作。再强调一次，不可变的数据结构在提速方面非常有用 —— 当你不得不对一个长列表对象做一个深度的比较，它会使重绘你的整个组件更加快速，而且代码量更少。
+
+### 由于在JavaScript线程中同时做很多事情，导致JS线程掉帧
+
+“导航切换极慢”是该问题的常见表现。在其他情形下，这种问题也可能会出现。使用`InteractionManager`是一个好的方法，但是如果在动画中，为了用户体验的开销而延迟其他工作并不太能接受，那么你可以考虑一下使用`LayoutAnimation`。
+
+`Animated`的接口一般会在JavaScript线程中计算出所需要的每一个关键帧，而`LayoutAnimation`则利用了`Core Animation`，使动画不会被JS线程和主线程的掉帧所影响。
+
+举一个需要使用这项功能的例子：比如需要给一个模态框做动画（从下往上划动，并在半透明遮罩中淡入），而这个模态框正在初始化，并且可能响应着几个网络请求，渲染着页面的内容，并且还在更新着打开这个模态框的父页面。了解更多有关如何使用LayoutAnimation的信息，请查看[动画指南](/docs/animations.html)。
+
+注意：  
+  
+ - `LayoutAnimation`只工作在“一次性”的动画上（"静态"动画） -- 如果动画可能会被中途取消，你还是需要使用`Animated`。
+
+### 在屏幕上移动视图（滚动，切换，旋转）时，UI线程掉帧
+
+当具有透明背景的文本位于一张图片上时，或者在每帧重绘视图时需要用到透明合成的任何其他情况下，这种现象尤为明显。设置`shouldRasterizeIOS`或者`renderToHardwareTextureAndroid`属性可以显著改善这一现象。
+注意不要过度使用该特性，否则你的内存使用量将会飞涨。在使用时，要评估你的性能和内存使用情况。如果你没有需要移动这个视图的需求，请关闭这一属性。
+
+### 使用动画改变图片的尺寸时，UI线程掉帧
+
+在iOS上，每次调整Image组件的宽度或者高度，都需要重新裁剪和缩放原始图片。这个操作开销会非常大，尤其是大的图片。比起直接修改尺寸，更好的方案是使用`transform: [{scale}]`的样式属性来改变尺寸。比如当你点击一个图片，要将它放大到全屏的时候，就可以使用这个属性。
+
+### Touchable系列组件不能很好的响应 
+
+有些时候，如果我们有一项操作与点击事件所带来的透明度改变或者高亮效果发生在同一帧中，那么有可能在`onPress`函数结束之前我们都看不到这些效果。比如在`onPress`执行了一个`setState`的操作，这个操作需要大量计算工作并且导致了掉帧。对此的一个解决方案是将`onPress`处理函数中的操作封装到`requestAnimationFrame`中：
+
+
+```javascript
+handleOnPress() {
+  // 谨记在使用requestAnimationFrame、setTimeout以及setInterval时
+  // 要使用TimerMixin（其作用是在组件unmount时，清除所有定时器）
+  this.requestAnimationFrame(() => {
+    this.doExpensiveAction();
+  });
+}
+```
+
+## 分析
+
+你可以利用内置的分析器来同时获取JavaScript线程和主线程中代码执行情况的详细信息。
+
+对于iOS来说，Instruments是一个宝贵的工具库，Android的话，你可以使用systrace，参见[调试Android UI性能](/docs/android-ui-performance.html#content)。

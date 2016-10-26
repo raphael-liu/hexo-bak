@@ -55,3 +55,9 @@ $ hexo generate
 ## License
 
 MIT
+
+##deploy
+```bash
+cd ../raphael-liu.github.io
+./run.sh
+```

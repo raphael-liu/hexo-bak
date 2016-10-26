@@ -139,10 +139,6 @@ baidushare: true
 google_site: #BsOBMPE4w6
 baidu_site: BsOBMPE4w6
 
-# Fill in Google Analytics tracking ID, #e.g. UA-XXXXX-X, or Baidu Analytics hash key
-google_analytics:
-baidu_analytics:
-
 # 不蒜子网站计数设置
 # http://ibruce.info/2015/04/04/busuanzi/
 visit_counter:

@@ -94,7 +94,7 @@ protected void onCreate(Bundle savedInstanceState) {
         this.mDoubleTapReloadRecognizer = new DoubleTapReloadRecognizer();
     }
 ```
---
+----
 第一个if块中的代码很简单,就是当RN在调试模式下,针对系统在SDK23以上创建RN调试悬浮窗的权限判断,没有权限则请求用户授权.Android官方文档:
 	
 ```
@@ -104,7 +104,7 @@ ACTION_MANAGE_OVERLAY_PERMISSION. The app can check whether it has this authoriz
 
 Settings.canDrawOverlays().
 ```
---
+----
 第二个if块是最关键的.通过ReactActivityDelegate来loadApp,这也是最耗时的操作,展现RN页面慢/白屏的根源.这里主要是创建ReactRootView以及初始化React上下文环境.
 
 ```
@@ -192,7 +192,7 @@ private void recreateReactContextInBackgroundInner() {
 ```
 第二个if块的关键代码就分析到这.
 
---
+----
 最后一句是调试模式下,注册一个DoubleTapReloadRecognizer,按两下R键重新加载bundle.处理逻辑是在DevSupportManager(通过DevSupportManagerFactory.create创建)的handleReloadJS方法中处理的.最终实现逻辑(XReactInstanceManagerImpl.java):
 
 ```
@@ -209,7 +209,7 @@ private void recreateReactContextInBackground(com.facebook.react.cxxbridge.JavaS
     }
 ```
 
-#bundle管理
+# bundle管理
 ![](http://bdapp.org/static/bundleManage.png)
 
 主要根据以上流程实现即可,同时要兼具安全性考量.验证文件安全性.

@@ -17,7 +17,7 @@
 <meta property="og:description" content="这里我们废话不多说,只围绕主题讲一些技术方面的干货.(本文基于React-Native0.36.0版本)
 我们之所以在native app中引入react-native(以下简称RN)框架,是为了将native app中的一些不确定的UI布局,逻辑,业务,流程等等因素,交由远端来控制.也就是说,RN的bundle文件都是由远端下发,然而我们为了最优化展现RN页面,往往都会提前下载好所需要的bund">
 <meta property="og:image" content="http://bdapp.org/static/bundleManage.png">
-<meta property="og:updated_time" content="2016-12-05T06:49:07.000Z">
+<meta property="og:updated_time" content="2016-12-26T09:03:23.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Android多个React-Native模块的实现及源码解读">
 <meta name="twitter:description" content="这里我们废话不多说,只围绕主题讲一些技术方面的干货.(本文基于React-Native0.36.0版本)
@@ -255,6 +255,37 @@
       
 
       
+        <div class="page-reward">
+          <a href="javascript:;" class="page-reward-btn tooltip-top">
+            <div class="tooltip tooltip-east">
+            <span class="tooltip-item">
+              赏
+            </span>
+            <span class="tooltip-content">
+              <span class="tooltip-text">
+                <span class="tooltip-inner">
+                  <p class="reward-p"><i class="icon icon-quo-left"></i>‘很荣幸能够和土豪做朋友’<i class="icon icon-quo-right"></i></p>
+                  <div class="reward-box">
+                    
+                    <div class="reward-box-item">
+                      <img class="reward-img" src="/static/alipay.jpg">
+                      <span class="reward-type">支付宝</span>
+                    </div>
+                    
+                    
+                    <div class="reward-box-item">
+                      <img class="reward-img" src="/static/wechatpay.jpg">
+                      <span class="reward-type">微信</span>
+                    </div>
+                    
+                  </div>
+                </span>
+              </span>
+            </span>
+          </div>
+          </a>
+        </div>
+      
     </div>
     <div class="article-info article-info-index">
       
@@ -376,7 +407,7 @@
       <div class="footer-right">
         
         
-        <span id="busuanzi_container_site_pv" style='display: none;'>
+        <span id="busuanzi_container_site_pv" style='display: inline;'>
                 <span id="site-visit">uv:
                     <span id="busuanzi_value_site_uv"></span>
                 </span>

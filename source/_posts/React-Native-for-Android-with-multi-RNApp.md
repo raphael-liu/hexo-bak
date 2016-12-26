@@ -2,6 +2,7 @@
 title: Android多个React-Native模块的实现及源码解读
 date: 2016-11-16 15:31:14
 tags: react-native
+reward: true
 ---
 这里我们废话不多说,只围绕主题讲一些技术方面的干货.(本文基于React-Native0.36.0版本)
 

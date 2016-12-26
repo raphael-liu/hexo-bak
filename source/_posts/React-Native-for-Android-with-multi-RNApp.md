@@ -36,7 +36,7 @@ public String gReactNativeBundlePath = "myBundlePath...";
 
                     @Override
                     protected List<ReactPackage> getPackages() {
-                        return Arrays.asList(new MainReactPackage(), new PatientReactPackage());
+                        return Arrays.asList(new MainReactPackage(), new CustomReactPackage());
                     }
 
                     @Override

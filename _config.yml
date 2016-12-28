@@ -4,8 +4,8 @@
 
 # Site	这下面的几项配置都很简单，你看我的博客就知道分别是什么意思
 title: Raphael’s Blog	#博客名
-subtitle: WTF	#副标题
-description: WTF #用于搜索，没有直观表现
+subtitle: 格物致知	#副标题
+description: 刘仁斐 #用于搜索，没有直观表现
 author: Raphael Liu	#作者
 language: zh-CN	#语言
 timezone: 	#时区，此处不填写，hexo会以你目前电脑的时区为默认值
@@ -40,6 +40,7 @@ future: true
 highlight:
   enable: true
   line_number: true
+  auto_detect: false
   tab_replace:
 
 # Category & Tag	暂不配置，使用默认值
@@ -59,6 +60,7 @@ time_format: HH:mm:ss
 per_page: 10	#每页显示的文章数，0表示不分页
 pagination_dir: page
 
+auto_excerpt: 400
 # Extensions	插件配置，暂时不配置
 ## Plugins: http://hexo.io/plugins/
 ## Themes: http://hexo.io/themes/

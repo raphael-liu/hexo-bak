@@ -6,7 +6,7 @@ tags: react-native
 我们尽最大的努力来争取使UI组件的性能如丝般顺滑，但有的时候这根本不可能做到。要知道，Android有超过一万种不同型号的手机，而在框架底层进行软件渲染的时候是统一处理的，这意味着你没办法像iOS那样自由。不过有些时候，你还是可以想办法提升应用的性能（有的时候问题根本不是出在原生代码上！）
 
 要想解决应用的性能问题，第一步就是搞明白在每个16毫秒的帧中，时间都去哪儿了。为此，我们会使用一个标准的Android性能分析工具`systrace`，不过在此之前……
-
+<!-- more -->
 > 请先确定JS的开发者模式已经关闭！
 >
 > 你应该在应用的日志里看到`__DEV__ === false, development-level warning are OFF, performance optimizations are ON`等字样（你可以通过adb logcat来查看应用日志）

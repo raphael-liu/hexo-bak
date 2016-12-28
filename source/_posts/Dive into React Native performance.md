@@ -8,7 +8,7 @@ tags: react-native
 
 ## Why the hurry?
 With an app that runs faster, content loads quickly, which means people get more time to interact with it, and smooth animations make the app enjoyable to use. In emerging markets, where 2011 class phones on 2G networks are the majority, a focus on performance can make the difference between an app that is usable and one that isn't.
-
+<!-- more -->
 Since releasing React Native on iOS and on Android, we have been improving list view scrolling performance, memory efficiency, UI responsiveness, and app startup time. Startup sets the first impression of an app and stresses all parts of the framework, so it is the most rewarding and challenging problem to tackle.
 
 ## Always be measuring

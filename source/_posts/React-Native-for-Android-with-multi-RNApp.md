@@ -7,7 +7,7 @@ reward: true
 这里我们废话不多说,只围绕主题讲一些技术方面的干货.(本文基于React-Native0.36.0版本)
 
 我们之所以在native app中引入react-native(以下简称RN)框架,是为了将native app中的一些不确定的UI布局,逻辑,业务,流程等等因素,交由远端来控制.也就是说,RN的bundle文件都是由远端下发,然而我们为了最优化展现RN页面,往往都会提前下载好所需要的bundle文件以节省网络交互时间.所以这篇博客我们是基于RN各模块(ComponentName)所对应的JS bundle文件已经下载到本地目标文件夹的前提下来写的.关于bundle文件的版本管理等我们在文末会详细介绍.
-
+<!-- more -->
 # ReactNativeHost
 我们将RN库引入工程之后,第一件事情就是改造Application类.我们需要在自己的Application中实现一个接口----ReactApplication
 

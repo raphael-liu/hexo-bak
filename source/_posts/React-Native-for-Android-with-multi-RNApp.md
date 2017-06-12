@@ -211,7 +211,7 @@ private void recreateReactContextInBackground(com.facebook.react.cxxbridge.JavaS
 ```
 
 # bundle管理
-![](http://bdapp.org/static/bundleManage.png)
+![](/static/bundleManage.png)
 
 主要根据以上流程实现即可,同时要兼具安全性考量.验证文件安全性.
 

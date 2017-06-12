@@ -12,7 +12,7 @@ timezone: 	#时区，此处不填写，hexo会以你目前电脑的时区为默�
 
 # URL	暂不配置，使用默认值
 ## If your site is put in a subdirectory, set url as 'http://yoursite.com/child' and root as '/child/'
-url: http://bdapp.org  #域名
+url: http://app4u.org  #域名
 root: /
 permalink: :year/:month/:day/:title/
 permalink_defaults:

@@ -2,4 +2,5 @@
 /.idea
 /.idea/*
 /themes
+/node_modules
 db.json
